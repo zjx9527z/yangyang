@@ -1,40 +1,108 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Twitter OAuth Authorization</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MANTA主链币余额监控</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            text-align: center;
+        }
+        h1 {
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+        .balance {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .loading {
+            font-style: italic;
+            color: #666;
+        }
+        select {
+            padding: 8px;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Twitter OAuth Authorization</h1>
+    <div class="container">
+        <h1>MANTA主链币余额监控</h1>
+        <select id="nodeSelect">
+            <option value="https://1rpc.io/manta">MANTA Node 1</option>
+            <option value="https://pacific-rpc.manta.network/http">MANTA Node 2</option>
+            <!-- Add more options for additional nodes -->
+        </select>
+        <p>地址: 0x7479c717f2B72116D15B4eaF8D540C497E07e0B6</p>
+        <p class="balance" id="balance">余额: <span class="loading">正在加载...</span></p>
+    </div>
 
-    <button id="authorizeButton">Authorize with Twitter</button>
-
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
     <script>
-        document.getElementById('authorizeButton').addEventListener('click', function () {
-            // Replace with your Twitter API credentials
-            const consumerKey = 'A7PK7n77IqM6PFFFPa1f3aTV5';
-            const consumerSecret = 'OOVpnEotECoDiMZfaQBFPdsgxW8vfJNcbUOYf1RnkYj5nrkW5k';
-            
-            // Redirect URL to your callback page
-            const redirectUri = 'http://uxuy.com';
+        const nodeSelect = document.getElementById('nodeSelect');
+        const address = '0x7479c717f2B72116D15B4eaF8D540C497E07e0B6';
+        let lastBalance = null;
 
-            // Generate a request token
-            fetch(`https://api.twitter.com/oauth/request_token?oauth_callback=${encodeURIComponent(redirectUri)}`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `OAuth oauth_callback=${encodeURIComponent(redirectUri)}, oauth_consumer_key=${consumerKey}, oauth_nonce=${Date.now()}, oauth_signature_method=HMAC-SHA1, oauth_timestamp=${Math.floor(Date.now() / 1000)}, oauth_version=1.0`
+        async function getBalanceAndSendNotification() {
+            const selectedNode = nodeSelect.value;
+            const web3 = new Web3(selectedNode);
+            const balance = await web3.eth.getBalance(address);
+            const etherBalance = web3.utils.fromWei(balance, 'ether');
+            const balanceElement = document.getElementById('balance');
+            const loadingElement = balanceElement.querySelector('.loading');
+            const balanceText = `余额: ${etherBalance} MANTA`;
+            balanceElement.removeChild(loadingElement);
+            balanceElement.textContent = balanceText;
+
+            if (lastBalance !== null && balance !== lastBalance) {
+                sendMessageToFeishu(`MANTA主链币余额已更新为 ${etherBalance} MANTA`);
+            }
+            lastBalance = balance;
+        }
+
+        async function sendMessageToFeishu(message) {
+            const webhookUrl = "https://open.feishu.cn/open-apis/bot/v2/hook/bd79675d-93ce-4efd-9819-652075e8ba20";
+            const requestBody = {
+                "msg_type": "text",
+                "content": {
+                    "text": message
                 }
-            })
-            .then(response => response.text())
-            .then(data => {
-                const requestToken = data.split('&')[0].split('=')[1];
-                
-                // Redirect the user to Twitter's authorization page
-                window.location.href = `https://api.twitter.com/oauth/authorize?oauth_token=${requestToken}`;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-            });
-        });
+            };
+
+            try {
+                const response = await fetch(webhookUrl, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    console.error("发送消息至飞书机器人时出错:", response.status, response.statusText);
+                }
+            } catch (error) {
+                console.error("发送消息时出错:", error);
+            }
+        }
+
+        nodeSelect.addEventListener('change', getBalanceAndSendNotification);
+        setInterval(getBalanceAndSendNotification, 5000);
+        getBalanceAndSendNotification();
     </script>
 </body>
 </html>
