@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Twitter OAuth Authorization</title>
+</head>
+<body>
+    <h1>Twitter OAuth Authorization</h1>
+
+    <button id="authorizeButton">Authorize with Twitter</button>
+
+    <script>
+        document.getElementById('authorizeButton').addEventListener('click', function () {
+            // Replace with your Twitter API credentials
+            const consumerKey = 'A7PK7n77IqM6PFFFPa1f3aTV5';
+            const consumerSecret = 'OOVpnEotECoDiMZfaQBFPdsgxW8vfJNcbUOYf1RnkYj5nrkW5k';
+            
+            // Redirect URL to your callback page
+            const redirectUri = 'http://uxuy.com';
+
+            // Generate a request token
+            fetch(`https://api.twitter.com/oauth/request_token?oauth_callback=${encodeURIComponent(redirectUri)}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `OAuth oauth_callback=${encodeURIComponent(redirectUri)}, oauth_consumer_key=${consumerKey}, oauth_nonce=${Date.now()}, oauth_signature_method=HMAC-SHA1, oauth_timestamp=${Math.floor(Date.now() / 1000)}, oauth_version=1.0`
+                }
+            })
+            .then(response => response.text())
+            .then(data => {
+                const requestToken = data.split('&')[0].split('=')[1];
+                
+                // Redirect the user to Twitter's authorization page
+                window.location.href = `https://api.twitter.com/oauth/authorize?oauth_token=${requestToken}`;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    </script>
+</body>
+</html>
